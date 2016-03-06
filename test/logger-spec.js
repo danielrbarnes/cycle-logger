@@ -129,6 +129,12 @@ describe('Logger', function() {
                 this.logger.info({a: 'b', c: function d() {}});
             });
 
+            it('previous log entries will not appear', function() {
+                this.logger.warn('warning 1');
+                this.logger.warn('warning 2');
+                multiLevelTest(this.logger, 'filter', ['error', 'warn'], [0, 0, 1], ['WARN']);
+            });
+
         });
 
         describe('.from', function() {
@@ -147,6 +153,12 @@ describe('Logger', function() {
 
             it('WARN shows WARN and ERROR but not INFO', function() {
                 multiLevelTest(this.logger, 'from', ['trace', 'debug', 'warn', 'info', 'error'], [0, 0, 0, 1, 1, 2], ['WARN']);
+            });
+
+            it('previous log entries will not appear', function() {
+                this.logger.warn('warning 1');
+                this.logger.warn('warning 2');
+                multiLevelTest(this.logger, 'from', ['debug', 'warn'], [0, 0, 1], ['WARN']);
             });
 
         });

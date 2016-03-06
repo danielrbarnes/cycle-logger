@@ -39,6 +39,7 @@ function invalidLevel(level) {
 
 /**
  * @external Broker
+ * @desc The cycle-ready event broker from `cycle-events`.
  */
 
 /**
