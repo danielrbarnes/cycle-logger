@@ -100,11 +100,7 @@ var Logger = exports.Logger = function (_Broker) {
          * logger.debug('this will NOT be logged');
          */
         value: function from(level) {
-            if (level === 'NONE') {
-                return _rxjs.Observable.never();
-            }
-            var levels = (0, _lodash.without)(order, 'NONE').slice(order.indexOf(level));
-            return this.filter.apply(this, _toConsumableArray(levels));
+            return level === 'NONE' ? _rxjs.Observable.never() : this.filter.apply(this, _toConsumableArray((0, _lodash.without)(order, 'NONE').slice(order.indexOf(level))));
         }
 
         /**
@@ -134,7 +130,7 @@ var Logger = exports.Logger = function (_Broker) {
 
             levels = (0, _lodash.uniq)((0, _lodash.without)(levels, invalidLevel));
             if ((0, _lodash.includes)(levels, 'NONE')) {
-                levels = Array.prototype;
+                return _rxjs.Observable.never();
             }
             if ((0, _lodash.includes)(levels, 'ALL')) {
                 levels = baseLevels;
@@ -227,6 +223,6 @@ var Logger = exports.Logger = function (_Broker) {
             args[_key2 - 1] = arguments[_key2];
         }
 
-        this.emit(level, _util.format.apply(undefined, [msg === undefined ? '' : msg].concat(args)));
+        this.emit(level, _util.format.apply(undefined, [(0, _lodash.isUndefined)(msg) ? '' : msg].concat(args)));
     }, obj;
 }, {}));

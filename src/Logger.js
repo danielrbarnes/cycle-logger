@@ -21,7 +21,8 @@ import {
     assign,
     includes,
     upperCase,
-    lowerCase
+    lowerCase,
+    isUndefined
 } from 'lodash';
 
 const order = ['ALL', 'TRACE', 'DEBUG', 'INFO', 'WARN', 'ERROR', 'NONE'],
@@ -113,12 +114,10 @@ export class Logger extends Broker {
      * logger.debug('this will NOT be logged');
      */
     from(level) {
-        if (level === 'NONE') {
-            return Observable.never();
-        }
-        let levels = without(order, 'NONE')
-            .slice(order.indexOf(level));
-        return this.filter(...levels);
+        return level === 'NONE' ?
+            Observable.never() :
+            this.filter(...without(order, 'NONE')
+                .slice(order.indexOf(level)));
     }
 
     /**
@@ -139,12 +138,12 @@ export class Logger extends Broker {
     filter(...levels) {
         levels = uniq(without(levels, invalidLevel));
         if (includes(levels, 'NONE')) {
-            levels = Array.prototype;
+            return Observable.never();
         }
         if (includes(levels, 'ALL')) {
             levels = baseLevels;
         }
-        return Observable.merge(...levels.map((level) =>
+        return Observable.merge(...levels.map(level =>
             Observable.fromEvent(this, level, function(msg) {
                 return {level, msg};
             })));
@@ -194,6 +193,6 @@ export class Logger extends Broker {
 
 assign(Logger.prototype, reduce(baseLevels, (obj, level) => {
     return obj[lowerCase(level)] = function log(msg, ...args) {
-        this.emit(level, format(msg === undefined ? '' : msg, ...args));
+        this.emit(level, format(isUndefined(msg) ? '' : msg, ...args));
     }, obj;
 }, {}));

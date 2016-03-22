@@ -1,6 +1,6 @@
 {
-  "name": "cycle-logger",
-  "version": "0.0.0",
+  "name": "cycle-logger2",
+  "version": "0.1.0",
   "description": "Provides logging to cycle.js applications.",
   "main": "index.js",
   "scripts": {
@@ -20,7 +20,6 @@
     "observable",
     "rxjs"
   ],
-  "private": true,
   "author": "Daniel R Barnes",
   "license": "MIT",
   "bugs": {
@@ -29,7 +28,7 @@
   "homepage": "https://github.com/danielrbarnes/cycle-logger#readme",
   "dependencies": {
     "lodash": "^4.6.1",
-    "cycle-events": "../cycle-events"
+    "cycle-events": "^0.1.0"
   },
   "devDependencies": {
     "babel-cli": "^6.6.5",
