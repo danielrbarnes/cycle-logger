@@ -1,198 +1,137 @@
 'use strict';
 
 /**
- * @overview Provides a logging utility for Cycle.js applications.
+ * @overview Provides logging utilities for Cycle.js applications.
  * @author Daniel R Barnes
  */
 
 import {format} from 'util';
-import {Broker} from 'cycle-events';
-import {Observable} from 'rxjs';
+import {trim, isEmpty, isString, toString} from 'lodash';
 
-import {
-    isString,
-    isEmpty,
-    without,
-    reduce,
-    keys,
-    bind,
-    trim,
-    uniq,
-    assign,
-    includes,
-    upperCase,
-    lowerCase,
-    isUndefined
-} from 'lodash';
-
-const order = ['ALL', 'TRACE', 'DEBUG', 'INFO', 'WARN', 'ERROR', 'NONE'],
-      baseLevels = without(order, 'NONE', 'ALL');
-
-// UTILITY METHODS
-
-function invalidLevel(level) {
-    return !isString(level) ||
-        !includes(order, upperCase(trim(level)));
-}
+import {Loggers} from './Loggers';
+import {LoggingEvent} from './LoggingEvent';
+import {events} from './common';
 
 /**
- * @external Broker
- * @desc The cycle-ready event broker from `cycle-events`.
- */
-
-/**
- * Provides logging functionality to Cycle.js applications.
  * @class Logger
- * @inherits Broker
+ * @classdesc Provides methods to log information at various {@link Loggers~Levels levels}.
  * @example
- * var Logger = require('Logger');
- * var logger = new Logger();
- * // Loggers inherit from cycle-events.Broker
- * // you can listen for specific logging levels:
- * logger.on(Logger.Levels.WARN, function(msg) {
- *   logFile.writeLine('warning: %s', msg);
- * });
+ * // show an error:
+ * Loggers.get('middleware')
+ *   .error('I/O Error: %s', 'Unexpected end of file.')
  * @example
- * // you can also view all messages at or above
- * // a specific logging level:
- * logger.from(Logger.Levels.INFO).subscribe(function onNext(data) {
- *   logFile.writeLine(data.level, data.msg);
- * });
- * logger.error('this will be written to the file');
- * logger.info('this will also be written to the file');
- * logger.debug('this will not be written to the file');
- * @example
- * logger.filter('WARN', 'INFO').subscribe(function onNext(data) {
- *   logFile.writeLine(data.level, data.msg);
- * });
- * logger.warn('this will be written to the file');
- * logger.info('this will also be written to the file');
- * logger.error('this will not be written to the file');
+ * // methods can be chained:
+ * Loggers.get('my.logger')
+ *   .warn('found bad data: %s', input)
+ *   .info('MyClass.myMethod: user provided bad data')
+ *   .trace();
  */
-export class Logger extends Broker {
+export class Logger {
 
-    /**
-     * @typedef Logger~Levels
-     * @type {Object}
-     * @desc The available logging levels. In order:
-     *  ALL &lt; TRACE &lt; DEBUG &lt; INFO &lt; WARN &lt; ERROR &lt; NONE
-     * @property {String} ALL
-     * @property {String} TRACE Extremely detailed information, like object dumps.
-     * @property {String} DEBUG Detailed information on your program's execution flow.
-     * @property {String} INFO Interesting lifecycle events.
-     * @property {String} WARN Use of deprecated APIs, 'almost' errors, and other undesirable or unexpected events.
-     * @property {String} ERROR Runtime errors and unexpected conditions.
-     * @property {String} NONE
-     */
-
-    /**
-     * @member {Logger~Levels} Logger.Levels
-     * @desc An enumeration of logging levels that users can subscribe to. In order:
-     *  ALL &lt; TRACE &lt; DEBUG &lt; INFO &lt; WARN &lt; ERROR &lt; NONE
-     * @example
-     * logger.on(Logger.Levels.WARN, function warningOccurred(msg) { ... });
-     * logger.on(Logger.Levels.ERROR, function errorOccurred(msg) { ... });
-     */
-    static get Levels() {
-        return reduce(order, (obj, level) => {
-            return obj[level] = level, obj;
-        }, {});
+    constructor(name) {
+        if (!isString(name) || isEmpty(trim(name))) {
+            throw new Error('A name must be specified.');
+        }
+        this._name = name;
     }
 
     /**
-     * Creates an Observable populated with future logging events at or
-     * above the specified logging level.
-     * @function Logger#from
-     * @param {String} level One of the [built-in logging levels]{@link Logger~Levels}.
-     * @example
-     * logger.from(Logger.Levels.WARN)
-     *   .subscribe(function log(data) {
-     *     logFile.writeLine(data.level, data.msg);
-     *   });
-     * logger.warn('this will be logged');
-     * logger.error('this will also be logged');
-     * logger.debug('this will NOT be logged');
+     * @member {String} Logger#name The unique name of the Logger instance.
+     * @readonly
      */
-    from(level) {
-        return level === 'NONE' ?
-            Observable.never() :
-            this.filter(...without(order, 'NONE')
-                .slice(order.indexOf(level)));
+    get name() {
+        return this._name;
     }
 
     /**
-     * Creates an Observable populated with future logging events
-     * matching the specified logging levels.
-     * @function Logger#filter
-     * @param {String} levels One or more of the [built-in logging levels]{@link Logger~Levels}.
-     * @example
-     * logger.filter(Logger.Levels.INFO, Logger.Levels.ERROR)
-     *   .subscribe(function log(data) {
-     *     logFile.writeLine(data.level, data.msg);
-     *   });
-     * logger.error('this will be logged');
-     * logger.warn('this will NOT be logged');
-     * logger.debug('this also will NOT be logged');
-     * logger.info('this will be logged, too');
+     * @private
      */
-    filter(...levels) {
-        levels = uniq(without(levels, invalidLevel));
-        if (includes(levels, 'NONE')) {
-            return Observable.never();
-        }
-        if (includes(levels, 'ALL')) {
-            levels = baseLevels;
-        }
-        return Observable.merge(...levels.map(level =>
-            Observable.fromEvent(this, level, function(msg) {
-                return {level, msg};
-            })));
+    static log(level, message, logger) {
+        events.next(new LoggingEvent({
+            level, message, logger
+        }));
+    }
+
+    /**
+     * Outputs trace information to any registered listeners.
+     * @function Logger#trace
+     * @param {String} msg The message string or object to log.
+     * @param {*} args The arguments to substitute into the message string.
+     *  See node's `util.format` method for more information on formatting.
+     * @returns {Logger} The Logger instance, for chaining.
+     */
+    trace(msg, ...args) {
+        var stacks = new Error().stack.split('\n');
+        stacks.splice(0, 1, format(toString(msg), ...args));
+        return Logger.log(
+            Loggers.Levels.TRACE,
+            stacks.join('\n'),
+            this.name
+        ), this;
+    }
+
+    /**
+     * Outputs debug information to any registered listeners.
+     * @function Logger#debug
+     * @param {String} msg The message string or object to log.
+     * @param {*} args The arguments to substitute into the message string.
+     *  See node's `util.format` method for more information on formatting.
+     * @returns {Logger} The Logger instance, for chaining.
+     */
+    debug(msg, ...args) {
+        return Logger.log(
+            Loggers.Levels.DEBUG,
+            format(toString(msg), ...args),
+            this.name
+        ), this;
+    }
+
+    /**
+     * Outputs non-error information to any registered listeners.
+     * @function Logger#info
+     * @param {String} msg The message string or object to log.
+     * @param {*} args The arguments to substitute into the message string.
+     *  See node's `util.format` method for more information on formatting.
+     * @returns {Logger} The Logger instance, for chaining.
+     */
+    info(msg, ...args) {
+        return Logger.log(
+            Loggers.Levels.INFO,
+            format(toString(msg), ...args),
+            this.name
+        ), this;
+    }
+
+    /**
+     * Outputs warnings to any registered listeners.
+     * @function Logger#warn
+     * @param {String} msg The message string or object to log.
+     * @param {*} args The arguments to substitute into the message string.
+     *  See node's `util.format` method for more information on formatting.
+     * @returns {Logger} The Logger instance, for chaining.
+     */
+    warn(msg, ...args) {
+        return Logger.log(
+            Loggers.Levels.WARN,
+            format(toString(msg), ...args),
+            this.name
+        ), this;
+    }
+
+    /**
+     * Outputs error information to any registered listeners.
+     * @function Logger#error
+     * @param {String} msg The message string or object to log.
+     * @param {*} args The arguments to substitute into the message string.
+     *  See node's `util.format` method for more information on formatting.
+     * @returns {Logger} The Logger instance, for chaining.
+     */
+    error(msg, ...args) {
+        return Logger.log(
+            Loggers.Levels.ERROR,
+            new Error(format(toString(msg), ...args)),
+            this.name
+        ), this;
     }
 
 }
-
-/**
- * Outputs trace information to any registered listeners.
- * @function Logger#trace
- * @param {*} msg The message string or object to log.
- * @param {*} args The arguments to substitute into the message string.
- *  See node's `util.format` method for more information on formatting.
- */
-
-/**
- * Outputs debug information to any registered listeners.
- * @function Logger#debug
- * @param {*} msg The message string or object to log.
- * @param {*} args The arguments to substitute into the message string.
- *  See node's `util.format` method for more information on formatting.
- */
-
-/**
- * Outputs non-error information to any registered listeners.
- * @function Logger#info
- * @param {*} msg The message string or object to log.
- * @param {*} args The arguments to substitute into the message string.
- *  See node's `util.format` method for more information on formatting.
- */
-
-/**
- * Outputs warnings to any registered listeners.
- * @function Logger#warn
- * @param {*} msg The message string or object to log.
- * @param {*} args The arguments to substitute into the message string.
- *  See node's `util.format` method for more information on formatting.
- */
-
-/**
- * Outputs error information to any registered listeners.
- * @function Logger#error
- * @param {*} msg The message string or object to log.
- * @param {*} args The arguments to substitute into the message string.
- *  See node's `util.format` method for more information on formatting.
- */
-
-assign(Logger.prototype, reduce(baseLevels, (obj, level) => {
-    return obj[lowerCase(level)] = function log(msg, ...args) {
-        this.emit(level, format(isUndefined(msg) ? '' : msg, ...args));
-    }, obj;
-}, {}));

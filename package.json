@@ -1,13 +1,13 @@
 {
   "name": "cycle-logger2",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Provides logging to cycle.js applications.",
   "main": "index.js",
   "scripts": {
-    "build": "babel -o index.js src/",
+    "build": "babel src --out-dir dist",
     "test": "npm run build && mocha",
-    "doc": "jsdoc -d ./build/docs src/Logger.js",
-    "readme": "jsdoc2md index.js --template README.tpl > README.md"
+    "doc": "jsdoc -d ./build/docs src",
+    "readme": "jsdoc2md src/*.js --template README.tpl > README.md"
   },
   "repository": {
     "type": "git",
