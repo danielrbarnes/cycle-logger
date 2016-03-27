@@ -27,8 +27,7 @@
   },
   "homepage": "https://github.com/danielrbarnes/cycle-logger#readme",
   "dependencies": {
-    "lodash": "^4.6.1",
-    "cycle-events": "^0.1.0"
+    "lodash": "^4.6.1"
   },
   "devDependencies": {
     "babel-cli": "^6.6.5",

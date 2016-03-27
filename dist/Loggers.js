@@ -122,8 +122,11 @@ var Loggers = exports.Loggers = function () {
          * @desc An enumeration of logging levels that users can subscribe to. In order:
          *  ALL &lt; TRACE &lt; DEBUG &lt; INFO &lt; WARN &lt; ERROR &lt; NONE
          * @example
-         * logger.on(Logger.Levels.WARN, function warningOccurred(msg) { ... });
-         * logger.on(Logger.Levels.ERROR, function errorOccurred(msg) { ... });
+         * Loggers.asObservable()
+         *   .byLevels(Loggers.Levels.WARN, Loggers.Levels.INFO)
+         *   .subscribe(function loggingEventReceived(event) {
+         *     myLogFile.writeln(event.toString());
+         *   });
          */
         get: function get() {
             return (0, _lodash.reduce)(_common.order, function (obj, level) {
